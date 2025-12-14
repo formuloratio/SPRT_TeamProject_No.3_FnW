@@ -35,12 +35,17 @@
 - 플레이어가 알맞는 속성의 스위치를 킬 수 있으며, 스위치에 따라 엘리베이터가 움직이거나 장애물이 사라짐.
 - 위의 조건들을 이용하여 모든 플레이어가 최상단의 문에 접근하면 게임 클리어.
 - 스테이지는 총 3단계가 있으며 게임을 클리어 하면 다음 스테이지로 나아가는 방식.
-
+  
+[스테이지 1]
 <img width="1594" height="893" alt="스크린샷 2025-12-14 230514" src="https://github.com/user-attachments/assets/1149bf0c-e622-460c-ac47-e7942a48db44" />
 <img width="1595" height="895" alt="스크린샷 2025-12-14 230611" src="https://github.com/user-attachments/assets/3b63dd92-d112-43de-8bb7-230f2dd1c4f3" />
 <img width="1592" height="891" alt="스크린샷 2025-12-14 230632" src="https://github.com/user-attachments/assets/71ef0792-97ae-4823-a749-859bde17500a" />
+  
+[스테이지 2]
 <img width="1592" height="890" alt="스크린샷 2025-12-14 230645" src="https://github.com/user-attachments/assets/b5ba24a0-115a-4243-868e-fde87233ddbc" />
 <img width="1592" height="892" alt="스크린샷 2025-12-14 230704" src="https://github.com/user-attachments/assets/6b7a1185-7a8c-4f8a-992c-00cd652ec162" />
+  
+[스테이지 3]
 <img width="1592" height="891" alt="스크린샷 2025-12-14 230758" src="https://github.com/user-attachments/assets/fb17f53e-b5e1-46f8-89a6-b8910111f15a" />
 <img width="1593" height="893" alt="스크린샷 2025-12-14 230851" src="https://github.com/user-attachments/assets/9e615370-fad6-4c42-b0c7-69f69b5fb256" />
 
