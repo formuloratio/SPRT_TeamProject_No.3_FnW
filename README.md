@@ -703,12 +703,13 @@
 
 ## ⏲️ 트러블슈팅
 
-### 캐릭터가 일정 범위 이상 벗어나면 투사체가 생성 즉시 사라지는 버그
+### 충돌체의 태그와 일치 여부 확인 구문이 수행되지 않는 문제
 * 문제 :
-  * Update() 문에서 float maxRangeSqr = rangeWeaponHandler.AttackRange 처럼 투사체의 최대 유효거리를 설정하고 if 문으로 투사체의 현재 위치가 maxRangeSqr 보다 크면 오브젝트가 파괴되도록 설정되어있었다.
-  * 발사체의 초기위치 값이 투사체가 생성된 위치가 기점이 아니라 캐릭터가 처음 생성된 위치가 기점으로 되어있었고 이를 해결하기 위해서는 투사체가 처음 생성된 위치 값을 가지고 유효 범위를 다시 계산했어야 했다.
+  * 해당 스크립트가 컴파일 된 오브젝트는 태그가 적용된 오브젝트들의 부모인 상황.
+  * if (this.gameObject == obstacleFire)로 자신에게는 태그가 달려있지 않는데 비교를 하니 오류가 날 수 밖에 없음.
+
 * 해결 :
-  * 위치라는 벡터 값을 가지고 float인 유효 거리를 계산하려다 보니 주어진 시간 상으로는 구현이 어렵다고 판단하여, 투사체의 유효 거리를 지정하는 방식이 아닌 투사체가 생성된 후 시간(1초)에 따라 파괴되도록 만들어서 해결하였다.
+  * if (obstacleFire)처럼 단순하게 충돌체의 태그가 무엇인지만을 가지고 판단할 수 있게 바꿔줌으로써 해결되었다.
 
 ---
 
@@ -755,7 +756,7 @@
     <th align="left" width="180"> 항목 </th>
     <th align="left" width="500"> 내용 </th>
   </tr>
-  <tr><td> 맵 타일셋 </td><td> [Free Topdown Fantasy - Forest - Pixelart Tileset] (https://aamatniekss.itch.io/topdown-fantasy-forest) </td></tr>
+  <tr><td> 맵 타일셋 </td><td> [DungeonTileset II] (https://0x72.itch.io/dungeontileset-ii) </td></tr>
   <tr><td> 그 외 </td><td> AI </td></tr>
 </table>
 
