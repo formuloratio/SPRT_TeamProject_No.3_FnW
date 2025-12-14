@@ -65,6 +65,22 @@
 
 ---
 
+
+## 🧰 역할분담
+
+<table>
+  <tr>
+    <th align="left" width="180"> 이름 </th>
+    <th align="left" width="500"> 역할 </th>
+  </tr>
+  <tr><td> 엄성진 </td><td> 맵 디자인, 스테이지 난이도, 장애물 기능 </td></tr>
+  <tr><td> 안건우 </td><td> 타이틀 구성, 업적, 사운드 </td></tr>
+  <tr><td> 유원영 </td><td> 튜토리얼 설명, 플레이어 조작 </td></tr>
+  <tr><td> 김동관 </td><td> 타임어택, UI 전반 </td></tr>
+</table>
+
+---
+
 ## 🖥️ 구현내용 [엄성진]
 
 
