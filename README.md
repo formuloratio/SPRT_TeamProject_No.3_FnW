@@ -73,7 +73,7 @@
     <th align="left" width="180"> 이름 </th>
     <th align="left" width="500"> 역할 </th>
   </tr>
-  <tr><td> 엄성진 </td><td> 맵 디자인, 스테이지 난이도, 장애물 기능 </td></tr>
+  <tr><td> 엄성진 </td><td> 맵 디자인 및 스테이지 구성, 장애물 기능 </td></tr>
   <tr><td> 안건우 </td><td> 타이틀 구성, 업적, 사운드 </td></tr>
   <tr><td> 유원영 </td><td> 튜토리얼 설명, 플레이어 조작 </td></tr>
   <tr><td> 김동관 </td><td> 타임어택, UI 전반 </td></tr>
@@ -82,10 +82,622 @@
 ---
 
 ## 🖥️ 구현내용 [엄성진]
+<img width="1982" height="957" alt="UML_N3" src="https://github.com/user-attachments/assets/41707cd4-cada-4984-8ad8-9da7a174b781" />
 
 
 ### 스크립트
 ---
+
+* ### 장애물 기능
+
+
+  <details>
+    <summary> InteractionObject.cs </summary>
+
+    ```csharp
+    using UnityEngine;
+    
+    namespace Features.Entities
+    {
+        public abstract class InteractionObject : MonoBehaviour
+        {
+            protected GameObject obstacleFire;
+            protected GameObject obstacleWater;
+    
+            protected int obstacleIndex { get; set; }
+            protected int fireIndex { get { return 0; } }
+            protected int waterIndex { get { return 1; } }
+    
+            protected bool isFire { get; set; }
+            protected bool isWater { get; set; }
+            protected int[] switchIndexArray;
+    
+            public virtual void GetObjectIndex() //오브젝트 순서에 따른 인덱스 추출
+            {
+                Transform parentTransform = this.transform;
+                for (int i = 0; i < parentTransform.childCount; i++)
+                {
+                    Transform childTransform = parentTransform.GetChild(i);
+    
+                    if (childTransform.gameObject.activeSelf)
+                    {
+                        if (childTransform.CompareTag("ObstacleFire"))
+                        {
+                            obstacleIndex = fireIndex;
+                        }
+                        else if (childTransform.CompareTag("ObstacleWater"))
+                        {
+                            obstacleIndex = waterIndex;
+                        }
+                    }
+                }
+            }
+    
+            private void OnDestroy()
+            {
+                if (AudioManager.Instance == null) return;
+                AudioManager.Instance.PlaySfx(AudioManager.Instance.deleteObjectSfx);
+            }
+        }
+    }
+    ```
+  
+  </details>
+
+  <details>
+    <summary> Wall.cs </summary>
+
+    ```csharp
+    using Features.Entities;
+    using UnityEngine;
+    
+    public class Wall : InteractionObject
+    {
+        void Start()
+        {
+            GetObjectIndex();
+        }
+    
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            //플레이어가 물일 때
+            if (collision.gameObject.CompareTag("PlayerWater"))
+            {
+                if (obstacleIndex == fireIndex)
+                {
+                    //불 벽 삭제
+                    Destroy(this.gameObject);
+                }
+            }
+            //플레이어가 불일 때
+            else if (collision.gameObject.CompareTag("PlayerFire"))
+            {
+                if (obstacleIndex == waterIndex)
+                {
+                    //물 벽 삭제
+                    Destroy(this.gameObject);
+                }
+            }
+    
+        }
+    }
+    ```
+  
+  </details>
+
+  <details>
+    <summary> Trap.cs </summary>
+
+    ```csharp
+    using Features.Entities;
+    using UnityEngine;
+    
+    // 스위치 상호작용으로 제거 가능한 함점
+    public class Trap : InteractionObject
+    {
+        // 스위치 인덱스랑 같아야 함 10 ~ 19 사이 지정
+        public int tripIndex = 10;
+    
+        void Start()
+        {
+            GetObjectIndex();
+        }
+    
+        void Update()
+        {
+            RemoveTrip();
+        }
+    
+        public void RemoveTrip()
+        {
+            if (SwitchingManager.Instance.isSwitching == true && SwitchingManager.Instance.switchTagCompare[tripIndex] == 1)
+            {
+                Destroy(this.gameObject);
+            }
+        }
+    
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            if (collision.gameObject.CompareTag("PlayerWater"))
+            {
+                if (obstacleIndex == fireIndex)
+                {
+                    //게임 오버
+                    Destroy(collision.gameObject.gameObject);
+                    Debug.Log("죽었습니다.");
+                    GameOverManager.Instance.ShowGameOver();
+                }
+            }
+            else if (collision.gameObject.CompareTag("PlayerFire"))
+            {
+                if (obstacleIndex == waterIndex)
+                {
+                    //게임 오버
+                    Destroy(collision.gameObject.gameObject);
+                    Debug.Log("죽었습니다.");
+                    GameOverManager.Instance.ShowGameOver();
+                }
+            }
+        }
+    }
+    ```
+  
+  </details>
+
+
+  <details>
+    <summary> Switch.cs </summary>
+
+    ```csharp
+    using Features.Entities;
+    using System.Collections;
+    using UnityEngine;
+    
+    public class Switch : InteractionObject
+    {
+        // 엘베랑 연결되는 스위치 id값 0~9
+        //함정 제거와 연결되는 스위치 id값 10~19
+        public int switchIndex = 0;
+    
+        Animator animator;
+    
+        private AudioManager _audioManager;
+    
+        private void Awake()
+        {
+            animator = GetComponentInChildren<Animator>();
+            _audioManager = AudioManager.Instance;
+        }
+    
+        IEnumerator Start()
+        {
+            //인스턴스가 null이 아닐 때 넘어가도록
+            yield return new WaitUntil(() => SwitchingManager.Instance != null);
+    
+            SwitchingManager.Instance.switchTagCompare[switchIndex] = 0;
+            SwitchingManager.Instance.isSwitching = false;
+    
+            GetObjectIndex();
+        }
+    
+        private void OnTriggerEnter2D(Collider2D collider)
+        {
+            //플레이어가 물일 때
+            if (collider.CompareTag("PlayerWater"))
+            {
+                if (obstacleIndex == waterIndex) //같은 물이면
+                {
+                    //스위치 동작
+                    isWater = true;
+                    animator.SetBool("isSwitched", true);
+    
+                    SwitchingManager.Instance.isSwitching = true;
+                    SwitchingManager.Instance.switchTagCompare[switchIndex] = 1;
+                    Debug.Log("스위치 ON");
+                    _audioManager.PlaySfx(_audioManager.switchClickSfx);
+                }
+            }
+            //플레이어가 불일 때
+            else if (collider.CompareTag("PlayerFire"))
+            {
+                if (obstacleIndex == fireIndex) //같은 불이면
+                {
+                    //스위치 동작
+                    isFire = true;
+                    animator.SetBool("isSwitched", true);
+    
+                    SwitchingManager.Instance.isSwitching = true;
+                    SwitchingManager.Instance.switchTagCompare[switchIndex] = 1;
+                    Debug.Log("스위치 ON");
+                    _audioManager.PlaySfx(_audioManager.switchClickSfx);
+                }
+            }
+    
+        }
+    
+        private void OnTriggerExit2D(Collider2D collider)
+        {
+            //플레이어가 물일 때
+            if (collider.CompareTag("PlayerWater"))
+            {
+                if (obstacleIndex == waterIndex) //같은 물이면
+                {
+                    //스위치 꺼짐
+                    SwitchingManager.Instance.isSwitching = false;
+                    isWater = false;
+                    animator.SetBool("isSwitched", false);
+    
+                    SwitchingManager.Instance.switchTagCompare[switchIndex] = 0;
+                    Debug.Log("스위치 OFF");
+                }
+            }
+            //플레이어가 불일 때
+            else if (collider.CompareTag("PlayerFire"))
+            {
+                if (obstacleIndex == fireIndex) //같은 불이면
+                {
+                    //스위치 꺼짐
+                    SwitchingManager.Instance.isSwitching = false;
+                    isFire = false;
+                    animator.SetBool("isSwitched", false);
+    
+                    SwitchingManager.Instance.switchTagCompare[switchIndex] = 0;
+                    Debug.Log("스위치 OFF");
+                }
+            }
+        }
+    }
+    ```
+  
+  </details>
+
+  <details>
+    <summary> Pitfall.cs </summary>
+
+    ```csharp
+    using Features.Entities;
+    using UnityEngine;
+    
+    public class Pitfall : InteractionObject
+    {
+        void Start()
+        {
+            GetObjectIndex();
+        }
+    
+        private void OnTriggerEnter2D(Collider2D collider)
+        {
+            if (collider.CompareTag("PlayerWater"))
+            {
+                if (obstacleIndex == fireIndex)
+                {
+                    //게임 오버
+                    Destroy(collider.gameObject);
+                    Debug.Log("죽었습니다.");
+                    GameOverManager.Instance.ShowGameOver();
+                }
+            }
+            else if (collider.CompareTag("PlayerFire"))
+            {
+                if (obstacleIndex == waterIndex)
+                {
+                    //게임 오버
+                    Destroy(collider.gameObject);
+                    Debug.Log("죽었습니다.");
+                    GameOverManager.Instance.ShowGameOver();
+                }
+            }
+        }
+    }
+    ```
+  
+  </details>
+
+  <details>
+    <summary> Bow.cs </summary>
+
+    ```csharp
+    using System.Collections;
+    using UnityEngine;
+    
+    public class Bow : MonoBehaviour
+    {
+        public GameObject arrowPrefab;
+        public bool isOff = false;
+        public bool isWork = false;
+    
+        // 스위치 인덱스랑 같아야 함 20 ~ 29 사이 지정
+        public int tripIndex = 20;
+    
+        void Update()
+        {
+            RemoveTrip();
+    
+            if (!isOff)
+            {
+                if (!isWork)
+                {
+                    isWork = true;
+                    StartCoroutine(WaitInstantiate());
+                }
+            }
+        }
+    
+        public void RemoveTrip()
+        {
+            if (SwitchingManager.Instance.isSwitching == true && SwitchingManager.Instance.switchTagCompare[tripIndex] == 1)
+            {
+                isOff = true;
+                Debug.Log("트립 제거");
+            }
+        }
+    
+        void SpawnArrow()
+        {
+            Transform newTrans = this.transform;
+            Vector3 spawnPosition = newTrans.position;
+            Quaternion newRotation = Quaternion.Euler(0, 0, 90);
+    
+            Instantiate(arrowPrefab, spawnPosition, newRotation);
+    
+            isWork = false;
+        }
+    
+        IEnumerator WaitInstantiate()
+        {
+            yield return new WaitForSeconds(3.0f);
+            SpawnArrow();
+        }
+    }
+    ```
+  
+  </details>
+
+
+  <details>
+    <summary> Arrow.cs </summary>
+
+    ```csharp
+    using UnityEngine;
+    
+    public class Arrow : MonoBehaviour
+    {
+        public float speed = 1.0f;
+    
+        void Update()
+        {
+            Vector3 thisPos = transform.position;
+            thisPos.x -= speed * Time.deltaTime;
+            transform.position = thisPos;
+            if (transform.position.x < -15)
+            {
+                Destroy(this.gameObject);
+            }
+        }
+    
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            if (collision.gameObject.CompareTag("PlayerWater") || (collision.gameObject.CompareTag("PlayerFire")))
+            {
+                Debug.Log("화살에 맞음");
+    
+                if (GameOverManager.Instance != null)
+                {
+                    GameOverManager.Instance.ShowGameOver();
+                }
+                Destroy(collision.gameObject);
+                Destroy(this.gameObject);
+            }
+        }
+    }
+    ```
+  
+  </details>
+
+  <details>
+    <summary> Elevator.cs </summary>
+
+    ```csharp
+    using UnityEngine;
+    
+    //스위치 상호작용에 따라 움직이는 엘리베이터
+    public class Elevator : MonoBehaviour
+    {
+        // 스위치 인덱스랑 같아야 함 0 ~ 9사이 지정 (0~4는 수동, 5~9는 자동)
+        public int elevatorIndex = 0;
+    
+        public float speed = 1.0f;
+    
+        public float maxLine = 5.4f;
+        public float minLine = 0f;
+        private AudioManager _audioManager;
+        private bool isAudioPlayed = false;
+        void Awake()
+        {
+            _audioManager = AudioManager.Instance;
+        }
+    
+        bool isChange = false;
+    
+        private void Update()
+        {
+            if (elevatorIndex >= 5)
+            {
+                AutoElevatorMove();
+            }
+            else if (SwitchingManager.Instance.isSwitching == true && SwitchingManager.Instance.switchTagCompare[elevatorIndex] == 1)
+            {
+                ElevatorMoveUp();
+            }
+            else if (SwitchingManager.Instance.isSwitching == false)
+            {
+                ElevatorMoveDown();
+            }
+        }
+        private void AutoElevatorMove()
+        {
+            if (!isChange)
+            {
+                Vector3 maxPos = this.gameObject.transform.position;
+                if (this.gameObject.transform.position.y < maxLine)
+                {
+                    maxPos.y += speed * Time.deltaTime;
+                }
+                else if (this.gameObject.transform.position.y >= maxLine)
+                {
+                    maxPos.y = maxLine;
+                    isChange = true;
+                }
+                this.gameObject.transform.position = maxPos;
+            }
+            else if (isChange)
+            {
+                Vector3 minPos = this.gameObject.transform.position;
+                if (this.gameObject.transform.position.y > minLine)
+                {
+                    minPos.y -= speed * Time.deltaTime;
+                }
+                else if (this.gameObject.transform.position.y <= minLine)
+                {
+                    minPos.y = minLine;
+                    isChange = false;
+                }
+                this.gameObject.transform.position = minPos;
+            }
+        }
+    
+        private void ElevatorMoveUp()
+        {
+            Vector3 maxPos = this.gameObject.transform.position;
+            if (this.gameObject.transform.position.y < maxLine)
+            {
+                maxPos.y += speed * Time.deltaTime;
+            }
+            else if (this.gameObject.transform.position.y >= maxLine)
+            {
+                maxPos.y = maxLine;
+            }
+            this.gameObject.transform.position = maxPos;
+            if (!isAudioPlayed)
+            {
+                _audioManager.PlaySfx(_audioManager.elevatorMoveSfx);
+                isAudioPlayed = true;
+            }
+    
+        }
+    
+        private void ElevatorMoveDown()
+        {
+            Vector3 minPos = this.gameObject.transform.position;
+            if (this.gameObject.transform.position.y > minLine)
+            {
+                minPos.y -= speed * Time.deltaTime;
+            }
+            else if (this.gameObject.transform.position.y >= minLine)
+            {
+                minPos.y = minLine;
+            }
+            this.gameObject.transform.position = minPos;
+        }
+    }
+    ```
+  
+  </details>
+
+  <details>
+    <summary> SwitchingManager.cs </summary>
+
+    ```csharp
+    using UnityEngine;
+    
+    public class SwitchingManager : MonoBehaviour
+    {
+        private static SwitchingManager instance;
+        public static SwitchingManager Instance
+        { 
+            get
+            {
+                if (instance == null)
+                {
+                    instance = FindObjectOfType<SwitchingManager>();
+    
+                    if (instance == null)
+                    {
+                        instance = new GameObject(nameof(SwitchingManager)).AddComponent<SwitchingManager>();
+                    }
+                }
+    
+                return instance;
+            }
+    
+        }
+    
+        public int[] switchTagCompare = new int[30];
+        public bool isSwitching = false;
+    
+    }
+    ```
+  
+  </details>
+
+* ### 배경
+
+  <details>
+    <summary> FollowBackground.cs </summary>
+
+    ```csharp
+    using UnityEngine;
+    
+    public class FollowBackground : MonoBehaviour
+    {
+        public Transform targetNum1;
+        public Transform targetNum2;
+    
+        // 배경의 초기 x 위치를 저장할 변수
+        private float startPosX;
+    
+        // targetNum의 초기 x 위치를 저장할 변수
+        private float targetStartPosX;
+    
+        private const float ParallaxFactor = 0.2f;
+    
+        void Start()
+        {
+            if (targetNum1 == null || targetNum2 == null)
+                return;
+    
+            // 배경의 초기 위치 저장
+            startPosX = transform.position.x + ((targetNum1.position.x + targetNum1.position.x) / 2) / 3;
+    
+            // 타겟 초기 위치는 2 개체 위치의 중간값
+            targetStartPosX = (targetNum1.position.x + targetNum1.position.x) / 2;
+        }
+    
+        void Update()
+        {
+            if (targetNum1 == null || targetNum2 == null)
+                return;
+    
+            // targetNum이 초기 위치로부터 얼마나 이동했는지 계산
+            float travelX1 = targetNum1.position.x - targetStartPosX;
+            float travelX2 = targetNum2.position.x - targetStartPosX;
+    
+            // 평균 이동 거리에 1/5 (0.2) 패럴랙스 계수를 적용
+            float distance = ((travelX1 + travelX2) / 2) * ParallaxFactor;
+    
+            // 배경의 새로운 x 위치 = 배경의 초기 위치 + (축소된 이동 거리)
+            float newPosX = startPosX + distance;
+    
+            transform.position = new Vector3(
+                newPosX,
+                transform.position.y, // y와 z 위치는 유지
+                transform.position.z
+            );
+        }
+    }
+    ```
+  
+  </details>
 
 ---
 
