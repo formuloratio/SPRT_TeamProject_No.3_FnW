@@ -24,8 +24,6 @@ namespace Features.Entities
 
                 if (childTransform.gameObject.activeSelf)
                 {
-                    //obstacleIndex = i;
-
                     if (childTransform.CompareTag("ObstacleFire"))
                     {
                         obstacleIndex = fireIndex;
